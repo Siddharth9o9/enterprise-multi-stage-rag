@@ -1,0 +1,26 @@
+# Core API Framework
+fastapi==0.115.6
+uvicorn[standard]==0.34.0
+
+# Data Validation & Settings
+pydantic==2.10.4
+pydantic-settings==2.7.1
+
+# NVIDIA NIM Client
+openai==1.59.6
+httpx==0.28.1
+
+# Retrieval
+sentence-transformers==3.3.1
+faiss-cpu==1.9.0.post1
+rank_bm25==0.2.2
+
+# Numerical Computing
+numpy==2.2.1
+
+# Environment Variables
+python-dotenv==1.0.1
+
+# Testing
+pytest==8.3.4
+pytest-asyncio==0.25.2

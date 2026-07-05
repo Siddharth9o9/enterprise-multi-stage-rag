@@ -1,0 +1,18 @@
+# Environment variables (never commit real API keys)
+.env
+
+# Python cache
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+
+# Virtual environment
+venv/
+
+# VS Code
+.vscode/settings.json
+
+# Distribution
+build/
+dist/
