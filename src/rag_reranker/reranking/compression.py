@@ -28,7 +28,7 @@ class EmbeddingsFilterCompressor:
     
     Using same embedding model as dense_retriever.py to get the sentence level similarity same way.
     """
-    def __init__(self, model_name: str | None = None,keep_fraction: float = 0.5,):
+    def __init__(self, model_name: str | None = None,keep_fraction: float = 0.75,):
         from sentence_transformers import SentenceTransformer
         import numpy as np
 
@@ -66,7 +66,7 @@ class EmbeddingsFilterCompressor:
         # Cosine similarity via dot product. Vectors normalized to unit length
         similarities = sentence_vecs @ query_vec
         
-        num_to_keep = max(1, int(len(sentences) * self.keep_fraction))
+        num_to_keep = max(1, round(len(sentences) * self.keep_fraction))
 
         # argsort ascending, take the last num_to_keep (highest scores),
         # then sort THOSE indices back into original document order so

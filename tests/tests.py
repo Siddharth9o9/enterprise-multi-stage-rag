@@ -1,20 +1,18 @@
-from rag_reranker.routing.adaptive_router import HeuristicQueryClassifier
+import asyncio
+from rag_reranker.pipeline import RAGPipeline
 
-classifier = HeuristicQueryClassifier()
+async def main():
+    pipeline = RAGPipeline(reranker_strategy='cross_encoder')
+    pipeline.index()
 
-test_queries = [
-    'Hello there',
-    'Thanks for the help',
-    'Who are you?',
-    'What can you do?',
-    'What is BM25?',
-    'Explain FAISS',
-    'What is a state space model?',
-    'Difference between cross-encoder and bi-encoder reranking',
-    'Why is RRF robust to score scale differences?',
-    'Compare the reranking approaches across multiple papers',
-]
+    query = 'Why is RRF robust to score scale differences between BM25 and dense retrieval?'
+    result = await pipeline.run(query)
 
-for q in test_queries:
-    strategy = classifier.classify(q)
-    print(f'{strategy.value:20} | {q}')
+    print('Reranked docs:')
+    for d in result.reranked_docs:
+        print(f'  - {d.title}')
+    print()
+    print('Answer:')
+    print(result.answer)
+
+asyncio.run(main())
