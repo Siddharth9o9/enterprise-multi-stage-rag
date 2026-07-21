@@ -18,6 +18,7 @@ else:
 
 from __future__ import annotations
 from dataclasses import dataclass, field
+import re
 
 from rag_reranker.config import settings
 from rag_reranker.ingestion.loader import Document, load_documents
@@ -97,6 +98,26 @@ class RAGPipeline:
         self.dense_retriever.build_index(chunks)
         self.sparse_retriever.build_index(chunks)
         self._indexed = True
+        
+    def _select_keep_fraction(self, query: str) -> float:
+        """
+        Adjusts compression aggressiveness based on query framing.
+
+        A fixed keep_fraction treats "why does X happen" and "what is X" identically, even though causal/comparative queries need the REASONING chain intact (mechanism sentences), while simpler complex queries can tolerate more aggressive trimming.
+
+        This reuses the exact same regex signals as adaptive_router.py's COMPLEX_RETRIEVAL detection — if a query triggered COMPLEX routing because of a causal/comparative pattern, that same pattern tells us how much of the reasoning chain to preserve during compression.
+        """
+        normalized = query.lower()
+
+        # Causal or comparative — needs the full reasoning chain,
+        # compress lightly (keep most sentences)
+        causal_patterns = [r"\bwhy\b", r"\bcompare\b", r"\bversus\b", r"\bvs\.?\b",
+                        r"\btradeoffs?\b", r"\bdifference between\b"]
+        if any(re.search(p, normalized) for p in causal_patterns):
+            return 0.8
+
+        # Long but not explicitly causal — moderate compression
+        return 0.6
 
     async def run(self, query: str) -> PipelineResult:
         """
@@ -166,10 +187,12 @@ class RAGPipeline:
         # multiple nuanced sources are being synthesized, and trimming
         # each document to its most relevant sentences meaningfully
         # helps the generator avoid the Lost-in-the-Middle problem.
+        self.compressor.keep_fraction = self._select_keep_fraction(query)
         compressed = self.compressor.compress_all(query, reranked)
 
         result.answer = await self.generator.generate(query, compressed)
         return result
+
 
 
 

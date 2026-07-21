@@ -77,7 +77,7 @@ class RecursiveChunker:
         separator = separators[0]
         remaining_separators = separators[1:]
         
-        # Using first separator to split the text and stripping the blank spaces from start and end
+        # Using first separator to split the text where double line and stripping the blank spaces from start and end
         parts = text.split(separator)
         parts = [p for p in parts if p.strip()]
 
