@@ -1,31 +1,44 @@
-import asyncio
-from rag_reranker.pipeline import RAGPipeline
+from rag_reranker.ingestion.loader import Document
+from rag_reranker.evaluation.metrics import reciprocal_rank, hit_rate_at_k, ndcg_at_k
 
-async def main():
-    pipeline = RAGPipeline(reranker_strategy='cross_encoder')
-    pipeline.index()
+def make_docs(titles):
+    return [Document(title=t, content='x') for t in titles]
 
-    complex_queries = [
-        'Why is RRF robust to score scale differences?',
-        'Compare cross-encoder and bi-encoder reranking approaches',
-        'What is the overview of adaptive RAG techniques used in modern systems?',
-    ]
+# Test 1: relevant doc at rank 1 -> MRR should be exactly 1.0
+docs = make_docs(['Correct', 'Wrong1', 'Wrong2'])
+mrr = reciprocal_rank(docs, {'Correct'})
+print(f'MRR (relevant at rank 1): {mrr} (expected: 1.0)')
 
-    for q in complex_queries:
-        strategy = pipeline.classifier.classify(q)
-        dense = pipeline.dense_retriever.retrieve(q, top_k=20)
-        sparse = pipeline.sparse_retriever.retrieve(q, top_k=20)
-        from rag_reranker.retrieval.fusion import reciprocal_rank_fusion
-        fused = reciprocal_rank_fusion([dense, sparse])
-        reranked = await pipeline.reranker.rerank(q, fused[:15], top_k=5)
+# Test 2: relevant doc at rank 3 -> MRR should be exactly 1/3
+docs = make_docs(['Wrong1', 'Wrong2', 'Correct'])
+mrr = reciprocal_rank(docs, {'Correct'})
+print(f'MRR (relevant at rank 3): {mrr:.4f} (expected: {1/3:.4f})')
 
-        before_total = sum(len(d.content) for d in reranked)
-        keep_fraction = pipeline._select_keep_fraction(q)
-        pipeline.compressor.keep_fraction = keep_fraction
-        compressed = pipeline.compressor.compress_all(q, reranked)
-        after_total = sum(len(d.content) for d in compressed)
+# Test 3: relevant doc not found -> MRR should be exactly 0.0
+docs = make_docs(['Wrong1', 'Wrong2'])
+mrr = reciprocal_rank(docs, {'Correct'})
+print(f'MRR (not found): {mrr} (expected: 0.0)')
 
-        reduction = 100 * (1 - after_total / before_total) if before_total else 0
-        print(f'keep_fraction={keep_fraction} | reduction: {reduction:.1f}% | {q}')
+print()
 
-asyncio.run(main())
+# Test 4: Hit@3 when relevant doc is within top 3 -> 1.0
+docs = make_docs(['A', 'B', 'Correct', 'D'])
+hit = hit_rate_at_k(docs, {'Correct'}, k=3)
+print(f'Hit@3 (correct at position 3): {hit} (expected: 1.0)')
+
+# Test 5: Hit@3 when relevant doc is OUTSIDE top 3 -> 0.0
+docs = make_docs(['A', 'B', 'C', 'Correct'])
+hit = hit_rate_at_k(docs, {'Correct'}, k=3)
+print(f'Hit@3 (correct at position 4): {hit} (expected: 0.0)')
+
+print()
+
+# Test 6: perfect ranking -> NDCG should be exactly 1.0
+docs = make_docs(['Correct', 'A', 'B'])
+ndcg = ndcg_at_k(docs, {'Correct'}, k=3)
+print(f'NDCG (perfect ranking): {ndcg:.4f} (expected: 1.0000)')
+
+# Test 7: worse ranking -> NDCG should be strictly LESS than 1.0
+docs = make_docs(['A', 'B', 'Correct'])
+ndcg = ndcg_at_k(docs, {'Correct'}, k=3)
+print(f'NDCG (correct buried at rank 3): {ndcg:.4f} (expected: less than 1.0)')
